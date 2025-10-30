@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+*.log
+
+# Virtual environment
+venv/
+.env
+.env.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node (if frontend uses it)
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Coverage and testing
+htmlcov/
+.coverage
+.cache/
+.pytest_cache/
+
+# Migrations cache
+*/migrations/__pycache__/

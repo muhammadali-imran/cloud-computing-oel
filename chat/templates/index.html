@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Secure Chat (AES-CBC demo)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+<body>
+  <h1>Secure Chat — browser-side AES-CBC encryption (demo)</h1>
+
+  <p><strong>Security note:</strong> For demo only. Do not embed static keys in public pages.</p>
+
+  <label>Shared key (16/24/32 chars):
+    <input id="key" value="ThisIsASecretKey" />
+  </label>
+  <br/><br/>
+
+  <textarea id="plaintext" rows="4" cols="60" placeholder="Type message here"></textarea>
+  <br/>
+  <button id="sendBtn">Encrypt & Send</button>
+
+  <h3>Server response</h3>
+  <pre id="serverResp">-</pre>
+
+  <!-- CryptoJS CDN (for AES-CBC + PKCS7) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script>
+    // helper: convert WordArray to Uint8Array
+    function wordArrayToUint8Array(wordArray) {
+      var words = wordArray.words;
+      var sigBytes = wordArray.sigBytes;
+      var u8 = new Uint8Array(sigBytes);
+      var idx=0;
+      for (var i=0; i<words.length; i++) {
+        var w = words[i];
+        u8[idx++] = (w >> 24) & 0xFF;
+        if (idx >= sigBytes) break;
+        u8[idx++] = (w >> 16) & 0xFF;
+        if (idx >= sigBytes) break;
+        u8[idx++] = (w >> 8) & 0xFF;
+        if (idx >= sigBytes) break;
+        u8[idx++] = w & 0xFF;
+        if (idx >= sigBytes) break;
+      }
+      return u8;
+    }
+
+    document.getElementById("sendBtn").addEventListener("click", async function(){
+      const keyStr = document.getElementById("key").value;
+      const text = document.getElementById("plaintext").value || "";
+
+      if (!keyStr || (keyStr.length !== 16 && keyStr.length !== 24 && keyStr.length !== 32)) {
+        alert("Key must be 16, 24 or 32 characters long (for demo).");
+        return;
+      }
+
+      // derive key as CryptoJS format
+      const keyWA = CryptoJS.enc.Utf8.parse(keyStr);
+
+      // generate random IV (16 bytes)
+      const ivWords = CryptoJS.lib.WordArray.random(16);
+      const iv = ivWords;
+
+      // encrypt with AES-CBC + PKCS7
+      const encrypted = CryptoJS.AES.encrypt(text, keyWA, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+
+      // encrypted.ciphertext is WordArray of ciphertext (no IV)
+      const ivBytes = wordArrayToUint8Array(iv);
+      const ctBytes = wordArrayToUint8Array(encrypted.ciphertext);
+
+      // concat IV || ciphertext
+      const payload = new Uint8Array(ivBytes.length + ctBytes.length);
+      payload.set(ivBytes, 0);
+      payload.set(ctBytes, ivBytes.length);
+
+      // base64 encode
+      const payloadB64 = btoa(String.fromCharCode.apply(null, payload));
+
+      // send to server
+      try {
+        const resp = await fetch("/api/send/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payload: payloadB64 })
+        });
+        const data = await resp.json();
+        document.getElementById("serverResp").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("serverResp").textContent = "Network error: " + err;
+      }
+    });
+  </script>
+</body>
+</html>
